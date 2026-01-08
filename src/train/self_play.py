@@ -41,6 +41,22 @@ def execute_episode(model, config: Config) -> List[Tuple[np.ndarray, np.ndarray,
     return training_data
 
 
+def execute_episode_wrapper(args):
+    model_state, config_dict = args
+    import torch
+    from model import PolicyValueNet
+    
+    config = Config()
+    for k, v in config_dict.items():
+        setattr(config, k, v)
+    
+    model = PolicyValueNet(config)
+    model.load_state_dict(model_state)
+    model.eval()
+    
+    return execute_episode(model, config)
+
+
 def augment_data(data: List[Tuple[np.ndarray, np.ndarray, float]]) -> List[Tuple[np.ndarray, np.ndarray, float]]:
     augmented = []
     for state, policy, value in data:
@@ -56,3 +72,4 @@ def augment_data(data: List[Tuple[np.ndarray, np.ndarray, float]]) -> List[Tuple
             augmented.append((flip_state, flip_policy, value))
     
     return augmented
+

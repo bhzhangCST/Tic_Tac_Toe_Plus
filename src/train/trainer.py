@@ -10,12 +10,13 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from typing import List, Tuple
 from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
 
 from game import Game81
 from model import PolicyValueNet
 from mcts import MCTS
 from config import Config
-from self_play import execute_episode, augment_data
+from self_play import execute_episode, execute_episode_wrapper, augment_data
 
 
 class Trainer:
@@ -34,10 +35,39 @@ class Trainer:
         self.model.eval()
         all_data = []
         
-        for _ in tqdm(range(num_games), desc="Self-play"):
-            episode_data = execute_episode(self.model, self.config)
-            augmented = augment_data(episode_data)
-            all_data.extend(augmented)
+        num_workers = min(self.config.num_workers, num_games, cpu_count())
+        
+        if num_workers <= 1:
+            for _ in tqdm(range(num_games), desc="Self-play"):
+                episode_data = execute_episode(self.model, self.config)
+                augmented = augment_data(episode_data)
+                all_data.extend(augmented)
+        else:
+            model_state = {k: v.cpu() for k, v in self.model.state_dict().items()}
+            config_dict = {
+                'num_simulations': self.config.num_simulations,
+                'c_puct': self.config.c_puct,
+                'dirichlet_alpha': self.config.dirichlet_alpha,
+                'dirichlet_epsilon': self.config.dirichlet_epsilon,
+                'temperature': self.config.temperature,
+                'temperature_threshold': self.config.temperature_threshold,
+                'num_channels': self.config.num_channels,
+                'num_res_blocks': self.config.num_res_blocks,
+            }
+            
+            args_list = [(model_state, config_dict) for _ in range(num_games)]
+            
+            print(f"Using {num_workers} workers for parallel self-play")
+            with Pool(processes=num_workers) as pool:
+                results = list(tqdm(
+                    pool.imap(execute_episode_wrapper, args_list),
+                    total=num_games,
+                    desc="Self-play"
+                ))
+            
+            for episode_data in results:
+                augmented = augment_data(episode_data)
+                all_data.extend(augmented)
         
         return all_data
     

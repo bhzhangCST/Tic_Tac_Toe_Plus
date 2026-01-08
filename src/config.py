@@ -14,7 +14,7 @@ class Config:
     dirichlet_epsilon = 0.25
     
     # ========== 训练参数 ==========
-    num_iterations = 100
+    num_iterations = 200
     games_per_iteration = 100
     epochs_per_iteration = 10
     batch_size = 256
@@ -27,6 +27,9 @@ class Config:
     # ========== 推理参数 ==========
     inference_mcts_sims = 400
     inference_temperature = 0.0
+    
+    # ========== 并行配置 ==========
+    num_workers = 4
     
     # ========== 路径配置 ==========
     checkpoint_dir = "../../checkpoints"
