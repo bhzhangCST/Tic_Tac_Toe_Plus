@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -65,18 +66,21 @@ class PolicyValueNet(nn.Module):
     def predict(self, state, valid_moves):
         self.eval()
         with torch.no_grad():
+            if isinstance(state, np.ndarray):
+                state = torch.FloatTensor(state)
+            
             if len(state.shape) == 3:
                 state = state.unsqueeze(0)
-            state = torch.FloatTensor(state)
+            
             if next(self.parameters()).is_cuda:
                 state = state.cuda()
             
             policy, value = self(state)
             policy = F.softmax(policy, dim=1).cpu().numpy()[0]
             
-            mask = torch.zeros(81)
+            mask = np.zeros(81)
             mask[valid_moves] = 1
-            policy = policy * mask.numpy()
+            policy = policy * mask
             policy_sum = policy.sum()
             if policy_sum > 0:
                 policy = policy / policy_sum
